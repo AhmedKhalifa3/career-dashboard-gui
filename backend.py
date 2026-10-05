@@ -1,10 +1,12 @@
 """
 Backend controller for Career Dashboard GUI.
-Handles Notion API operations and Scout subprocess execution.
+Handles Notion API operations, Scout subprocess execution, and local-to-Notion sync.
 """
 
 import os
 import sys
+import json
+import signal
 import subprocess
 import threading
 from typing import Any, Callable, Dict, List, Optional
@@ -34,6 +36,8 @@ DEFAULT_SCOUT_DIR = os.path.abspath(
 )
 
 _SCHEMA_CACHE: Dict[str, Any] = {}
+_ACTIVE_SCOUT_PROC: Optional[subprocess.Popen] = None
+_SCOUT_LOCK = threading.Lock()
 
 def get_notion_client() -> Client:
     api_key = os.getenv("NOTION_API_KEY", NOTION_API_KEY)
@@ -225,6 +229,7 @@ def fetch_discovered_leads(status_filter: Optional[str] = None) -> List[Dict[str
             "url": _get_page_prop_text(p, schema["url_prop"]) or "",
             "notes": _get_page_prop_text(p, schema["notes_prop"]) or "",
             "date": _get_page_prop_text(p, schema["date_prop"]) or "",
+            "source_type": "notion"
         }
         leads.append(lead)
 
@@ -283,12 +288,143 @@ def clean_dismissed_leads(progress_callback: Optional[Callable[[int, int], None]
 
     return cleaned
 
+# --- Local Discovered Jobs & Notion Push Operations ---
+
+def load_local_discovered_jobs() -> List[Dict[str, Any]]:
+    """Loads latest discovered jobs from job_discovery_inbox/discovered_jobs.json."""
+    json_path = os.path.join(DEFAULT_SCOUT_DIR, "discovered_jobs.json")
+    if not os.path.exists(json_path):
+        return []
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, list):
+                jobs = []
+                for idx, item in enumerate(data):
+                    jobs.append({
+                        "id": f"local_{idx}",
+                        "company": item.get("company", "Company"),
+                        "role": item.get("role", "Software Role"),
+                        "location": item.get("location", "Remote"),
+                        "status": "New",
+                        "score": str(item.get("score", "-")),
+                        "category": item.get("category", "Search"),
+                        "url": item.get("url", ""),
+                        "notes": item.get("snippet", ""),
+                        "date": "",
+                        "source_type": "local",
+                        "pushed": False
+                    })
+                return jobs
+    except Exception:
+        pass
+    return []
+
+def push_single_lead_to_notion(lead: Dict[str, Any]) -> bool:
+    """Pushes a single local job lead to the Notion Discovery Inbox database."""
+    client = get_notion_client()
+    db_id = get_discovery_db_id()
+    schema = inspect_database_schema(client, db_id)
+
+    title_prop = schema.get("title_prop") or "Company"
+    properties: Dict[str, Any] = {
+        title_prop: {
+            "title": [{"text": {"content": lead.get("company", "Company")[:100]}}]
+        }
+    }
+
+    if schema.get("role_prop"):
+        properties[schema["role_prop"]] = {
+            "rich_text": [{"text": {"content": lead.get("role", "Role")[:200]}}]
+        }
+
+    if schema.get("url_prop") and lead.get("url"):
+        properties[schema["url_prop"]] = {"url": lead["url"]}
+
+    if schema.get("status_prop"):
+        st_type = schema.get("status_type") or "select"
+        st_val = lead.get("status", "New")
+        properties[schema["status_prop"]] = {st_type: {"name": st_val}}
+
+    if schema.get("location_prop") and lead.get("location"):
+        properties[schema["location_prop"]] = {
+            "rich_text": [{"text": {"content": lead.get("location", "")[:100]}}]
+        }
+
+    if schema.get("score_prop") and lead.get("score"):
+        try:
+            properties[schema["score_prop"]] = {"number": int(lead["score"])}
+        except (ValueError, TypeError):
+            pass
+
+    if schema.get("notes_prop") and lead.get("notes"):
+        properties[schema["notes_prop"]] = {
+            "rich_text": [{"text": {"content": lead.get("notes", "")[:1800]}}]
+        }
+
+    # Deduplication check by URL
+    if lead.get("url") and schema.get("url_prop"):
+        dup_filter = {
+            "property": schema["url_prop"],
+            "url": {"equals": lead["url"]}
+        }
+        dups = query_pages(client, db_id, query_filter=dup_filter, max_results=1)
+        if dups:
+            # Already exists in Notion
+            return False
+
+    client.pages.create(
+        parent={"database_id": db_id},
+        properties=properties
+    )
+    return True
+
+def push_leads_to_notion(leads: List[Dict[str, Any]], progress_callback: Optional[Callable[[int, int], None]] = None) -> int:
+    """Pushes a list of local leads to Notion."""
+    success_count = 0
+    total = len(leads)
+    for idx, lead in enumerate(leads):
+        try:
+            ok = push_single_lead_to_notion(lead)
+            if ok:
+                success_count += 1
+                lead["pushed"] = True
+        except Exception:
+            pass
+        if progress_callback:
+            progress_callback(idx + 1, total)
+    return success_count
+
+# --- Scout Process Control ---
+
+def stop_scout_process() -> bool:
+    """Instantly kills the running scout subprocess and its process group."""
+    global _ACTIVE_SCOUT_PROC
+    with _SCOUT_LOCK:
+        if _ACTIVE_SCOUT_PROC and _ACTIVE_SCOUT_PROC.poll() is None:
+            try:
+                pgid = os.getpgid(_ACTIVE_SCOUT_PROC.pid)
+                os.killpg(pgid, signal.SIGTERM)
+                threading.Event().wait(0.2)
+                if _ACTIVE_SCOUT_PROC.poll() is None:
+                    os.killpg(pgid, signal.SIGKILL)
+                return True
+            except Exception:
+                try:
+                    _ACTIVE_SCOUT_PROC.kill()
+                    return True
+                except Exception:
+                    pass
+    return False
+
 def run_scout_process(
     freshness: str = "24h",
     category: str = "all",
-    log_callback: Optional[Callable[[str], None]] = None,
-    stop_event: Optional[threading.Event] = None
+    max_queries: int = 25,
+    log_callback: Optional[Callable[[str], None]] = None
 ) -> int:
+    """Runs scout.py locally (without automatic pushing to Notion)."""
+    global _ACTIVE_SCOUT_PROC
     scout_dir = DEFAULT_SCOUT_DIR
     python_bin = os.path.join(scout_dir, ".venv/bin/python")
     if not os.path.exists(python_bin):
@@ -300,9 +436,20 @@ def run_scout_process(
             log_callback(f"❌ scout.py not found at {scout_script}\n")
         return 1
 
-    cmd = [python_bin, scout_script, "--fresh", freshness, "--category", category, "--push-notion"]
+    # NOTE: Does NOT pass --push-notion so user reviews matches before pushing!
+    cmd = [
+        python_bin,
+        "-u",  # Unbuffered output for instant real-time log streaming
+        scout_script,
+        "--fresh", freshness,
+        "--category", category,
+        "--max-queries", str(max_queries)
+    ]
     if log_callback:
-        log_callback(f"🚀 Running command: {' '.join(cmd)}\n")
+        log_callback(f"🚀 Running scout (Local Search Mode):\n   {' '.join(cmd)}\n\n")
+
+    env = os.environ.copy()
+    env["PYTHONUNBUFFERED"] = "1"
 
     process = subprocess.Popen(
         cmd,
@@ -310,23 +457,34 @@ def run_scout_process(
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
-        bufsize=1
+        bufsize=1,
+        env=env,
+        start_new_session=True  # Separate process group for instant killpg
     )
 
-    while True:
-        if stop_event and stop_event.is_set():
-            process.terminate()
+    with _SCOUT_LOCK:
+        _ACTIVE_SCOUT_PROC = process
+
+    try:
+        for line in iter(process.stdout.readline, ''):
             if log_callback:
-                log_callback("⏹️ Scout process stopped by user.\n")
-            return -1
+                log_callback(line)
+    except Exception:
+        pass
+    finally:
+        if process.stdout:
+            process.stdout.close()
 
-        line = process.stdout.readline()
-        if not line and process.poll() is not None:
-            break
-        if line and log_callback:
-            log_callback(line)
+    ret = process.wait()
 
-    ret = process.poll() or 0
+    with _SCOUT_LOCK:
+        _ACTIVE_SCOUT_PROC = None
+
+    if ret in (-signal.SIGTERM, -signal.SIGKILL, 137):
+        if log_callback:
+            log_callback("\n⏹️ Scout process stopped immediately by user.\n")
+        return -1
+
     if log_callback:
-        log_callback(f"\n✨ Scout completed with exit code {ret}.\n")
+        log_callback(f"\n✨ Scout completed (exit code {ret}). Review findings above and push to Notion when ready!\n")
     return ret
