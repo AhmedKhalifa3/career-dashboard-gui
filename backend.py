@@ -380,19 +380,49 @@ def push_single_lead_to_notion(lead: Dict[str, Any]) -> bool:
     return True
 
 def push_leads_to_notion(leads: List[Dict[str, Any]], progress_callback: Optional[Callable[[int, int], None]] = None) -> int:
-    """Pushes a list of local leads to Notion."""
+    """Pushes a list of local leads to Notion, removing successfully pushed items from local pending inbox."""
     success_count = 0
     total = len(leads)
+    pushed_urls = set()
+
     for idx, lead in enumerate(leads):
         try:
             ok = push_single_lead_to_notion(lead)
             if ok:
                 success_count += 1
                 lead["pushed"] = True
+                if lead.get("url"):
+                    pushed_urls.add(lead["url"])
         except Exception:
             pass
         if progress_callback:
             progress_callback(idx + 1, total)
+
+    # Sync pushed leads with local files
+    if pushed_urls:
+        seen_path = os.path.join(DEFAULT_SCOUT_DIR, "seen_jobs.json")
+        try:
+            seen_set = set()
+            if os.path.exists(seen_path):
+                with open(seen_path, "r", encoding="utf-8") as f:
+                    seen_set = set(json.load(f))
+            seen_set.update(pushed_urls)
+            with open(seen_path, "w", encoding="utf-8") as f:
+                json.dump(list(seen_set), f, indent=2)
+        except Exception:
+            pass
+
+        disc_path = os.path.join(DEFAULT_SCOUT_DIR, "discovered_jobs.json")
+        try:
+            if os.path.exists(disc_path):
+                with open(disc_path, "r", encoding="utf-8") as f:
+                    disc_list = json.load(f)
+                remaining = [j for j in disc_list if j.get("url") not in pushed_urls]
+                with open(disc_path, "w", encoding="utf-8") as f:
+                    json.dump(remaining, f, indent=2)
+        except Exception:
+            pass
+
     return success_count
 
 # --- Scout Process Control ---
@@ -421,6 +451,7 @@ def run_scout_process(
     freshness: str = "24h",
     category: str = "all",
     max_queries: int = 25,
+    rescan: bool = False,
     log_callback: Optional[Callable[[str], None]] = None
 ) -> int:
     """Runs scout.py locally (without automatic pushing to Notion)."""
@@ -445,6 +476,9 @@ def run_scout_process(
         "--category", category,
         "--max-queries", str(max_queries)
     ]
+    if rescan:
+        cmd.append("--rescan")
+
     if log_callback:
         log_callback(f"🚀 Running scout (Local Search Mode):\n   {' '.join(cmd)}\n\n")
 

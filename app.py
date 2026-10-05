@@ -123,7 +123,17 @@ class CareerDashboardApp(ctk.CTk):
             values=["Fast Scan (20 Dorks + APIs)", "Deep Scan (50 Dorks + APIs)", "Full Scan (All Dorks + APIs)"],
             variable=self.depth_var
         )
-        self.depth_menu.grid(row=9, column=0, padx=20, pady=(0, 15), sticky="ew")
+        self.depth_menu.grid(row=9, column=0, padx=20, pady=(0, 10), sticky="ew")
+
+        # Force Rescan Checkbox
+        self.rescan_var = ctk.BooleanVar(value=False)
+        self.rescan_chk = ctk.CTkCheckBox(
+            self.sidebar,
+            text="🔄 Force Rescan (Ignore cache)",
+            font=ctk.CTkFont(size=12),
+            variable=self.rescan_var
+        )
+        self.rescan_chk.grid(row=10, column=0, padx=20, pady=(0, 12), sticky="w")
 
         # Scout Action Buttons
         self.btn_run_scout = ctk.CTkButton(
@@ -134,7 +144,7 @@ class CareerDashboardApp(ctk.CTk):
             hover_color="#144d75",
             command=self.on_run_scout
         )
-        self.btn_run_scout.grid(row=10, column=0, padx=20, pady=(0, 8), sticky="ew")
+        self.btn_run_scout.grid(row=11, column=0, padx=20, pady=(0, 8), sticky="ew")
 
         self.btn_stop_scout = ctk.CTkButton(
             self.sidebar,
@@ -144,11 +154,11 @@ class CareerDashboardApp(ctk.CTk):
             state="disabled",
             command=self.on_stop_scout
         )
-        self.btn_stop_scout.grid(row=11, column=0, padx=20, pady=(0, 15), sticky="ew")
+        self.btn_stop_scout.grid(row=12, column=0, padx=20, pady=(0, 15), sticky="ew")
 
         sep2 = ctk.CTkProgressBar(self.sidebar, height=2)
         sep2.set(1.0)
-        sep2.grid(row=12, column=0, padx=20, pady=(0, 15), sticky="ew")
+        sep2.grid(row=13, column=0, padx=20, pady=(0, 15), sticky="ew")
 
         # Database Management Section
         maint_hdr = ctk.CTkLabel(
@@ -157,7 +167,7 @@ class CareerDashboardApp(ctk.CTk):
             font=ctk.CTkFont(size=11, weight="bold"),
             text_color="#9b59b6"
         )
-        maint_hdr.grid(row=13, column=0, padx=20, pady=(0, 8), sticky="w")
+        maint_hdr.grid(row=14, column=0, padx=20, pady=(0, 8), sticky="w")
 
         self.btn_refresh = ctk.CTkButton(
             self.sidebar,
@@ -166,7 +176,7 @@ class CareerDashboardApp(ctk.CTk):
             hover_color="#34495e",
             command=self.refresh_leads
         )
-        self.btn_refresh.grid(row=14, column=0, padx=20, pady=(0, 8), sticky="ew")
+        self.btn_refresh.grid(row=15, column=0, padx=20, pady=(0, 8), sticky="ew")
 
         self.btn_clean_dismissed = ctk.CTkButton(
             self.sidebar,
@@ -175,7 +185,7 @@ class CareerDashboardApp(ctk.CTk):
             hover_color="#9b59b6",
             command=self.on_clean_dismissed
         )
-        self.btn_clean_dismissed.grid(row=15, column=0, padx=20, pady=(0, 15), sticky="ew")
+        self.btn_clean_dismissed.grid(row=16, column=0, padx=20, pady=(0, 15), sticky="ew")
 
         # Bottom theme toggle
         theme_lbl = ctk.CTkLabel(self.sidebar, text="Appearance Mode:", font=ctk.CTkFont(size=11))
@@ -750,6 +760,7 @@ class CareerDashboardApp(ctk.CTk):
         freshness = self.freshness_var.get()
         category = self.category_var.get()
         depth_val = self.depth_var.get()
+        rescan = self.rescan_var.get()
 
         max_queries = 20
         if "50 Dorks" in depth_val:
@@ -760,7 +771,8 @@ class CareerDashboardApp(ctk.CTk):
         self.btn_run_scout.configure(state="disabled", text="⏳ Running Scout...")
         self.btn_stop_scout.configure(state="normal", fg_color="#c0392b")
 
-        self.log(f"\n{'='*60}\n🚀 Launching Job Scout (Freshness: {freshness}, Category: {category}, Mode: Local Search)\n{'='*60}\n")
+        rescan_msg = " [🔄 Force Rescan Enabled]" if rescan else ""
+        self.log(f"\n{'='*60}\n🚀 Launching Job Scout (Freshness: {freshness}, Category: {category}{rescan_msg}, Mode: Local Search)\n{'='*60}\n")
 
         def _worker():
             try:
@@ -768,6 +780,7 @@ class CareerDashboardApp(ctk.CTk):
                     freshness=freshness,
                     category=category,
                     max_queries=max_queries,
+                    rescan=rescan,
                     log_callback=self.log
                 )
             except Exception as e:
