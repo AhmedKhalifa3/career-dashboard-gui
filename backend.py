@@ -13,10 +13,15 @@ from typing import Any, Callable, Dict, List, Optional
 from dotenv import load_dotenv
 from notion_client import Client
 
-# Load environment variables (checking local, then peer project folders)
+# Load environment variables (checking local, then parent/peer project folders)
 load_dotenv()
 if not os.getenv("NOTION_API_KEY"):
-    for peer_env in ["../notion-tracker-mcp/.env", "../job_discovery_inbox/.env"]:
+    for peer_env in [
+        "../.env",
+        "../notion-tracker-mcp/.env",
+        "../job_discovery_inbox/.env",
+        "../job-discovery-inbox/.env",
+    ]:
         if os.path.exists(peer_env):
             load_dotenv(peer_env)
             break
@@ -28,12 +33,25 @@ def clean_id(raw_id: str) -> str:
 
 NOTION_API_KEY = os.getenv("NOTION_API_KEY", "")
 NOTION_DISCOVERED_JOBS_DB_ID = clean_id(os.getenv("NOTION_DISCOVERED_JOBS_DB_ID", ""))
-NOTION_JOB_TRACKER_DB_ID = clean_id(os.getenv("NOTION_JOB_TRACKER_DB_ID", ""))
+NOTION_JOB_TRACKER_DB_ID = clean_id(
+    os.getenv("NOTION_JOB_TRACKER_DB_ID", "") or os.getenv("NOTION_DATABASE_ID", "")
+)
 
 # Path to job_discovery_inbox
-DEFAULT_SCOUT_DIR = os.path.abspath(
-    os.getenv("SCOUT_PROJECT_PATH", os.path.join(os.path.dirname(__file__), "../job_discovery_inbox"))
-)
+def _find_scout_dir() -> str:
+    override = os.getenv("SCOUT_PROJECT_PATH")
+    if override and os.path.exists(override):
+        return os.path.abspath(override)
+    candidates = [
+        os.path.join(os.path.dirname(__file__), "../job_discovery_inbox"),
+        os.path.join(os.path.dirname(__file__), "../job-discovery-inbox"),
+    ]
+    for c in candidates:
+        if os.path.exists(c):
+            return os.path.abspath(c)
+    return os.path.abspath(candidates[0])
+
+DEFAULT_SCOUT_DIR = _find_scout_dir()
 
 _SCHEMA_CACHE: Dict[str, Any] = {}
 _ACTIVE_SCOUT_PROC: Optional[subprocess.Popen] = None
@@ -52,9 +70,12 @@ def get_discovery_db_id() -> str:
     return db_id
 
 def get_tracker_db_id() -> str:
-    db_id = clean_id(os.getenv("NOTION_JOB_TRACKER_DB_ID", NOTION_JOB_TRACKER_DB_ID))
+    db_id = clean_id(
+        os.getenv("NOTION_JOB_TRACKER_DB_ID", NOTION_JOB_TRACKER_DB_ID)
+        or os.getenv("NOTION_DATABASE_ID", "")
+    )
     if not db_id:
-        raise ValueError("NOTION_JOB_TRACKER_DB_ID is not configured.")
+        raise ValueError("NOTION_JOB_TRACKER_DB_ID (or NOTION_DATABASE_ID) is not configured.")
     return db_id
 
 def inspect_database_schema(client: Client, db_id: str) -> Dict[str, Any]:
