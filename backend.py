@@ -637,7 +637,10 @@ def run_scout_process(
     scout_script = os.path.join(scout_dir, "scout.py")
     if not os.path.exists(scout_script):
         if log_callback:
-            log_callback(f"❌ scout.py not found at {scout_script}\n")
+            log_callback(f"❌ scout.py not found at: {scout_script}\n")
+            log_callback("💡 To run the automated job scraper, clone job-discovery-inbox alongside this project:\n")
+            log_callback("   git clone https://github.com/AhmedKhalifa3/job-discovery-inbox.git\n")
+            log_callback("   or set SCOUT_PROJECT_PATH in your .env file.\n\n")
         return 1
 
     # NOTE: Does NOT pass --push-notion so user reviews matches before pushing!

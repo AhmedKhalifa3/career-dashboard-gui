@@ -53,9 +53,14 @@
 
 ---
 
-## 📁 Directory Structure & Workspace Setup
+## 📁 Directory Structure & Companion Setup
 
-Career Cockpit is designed as the interactive control cockpit for your autonomous career search. By default, it operates side-by-side with the `job_discovery_inbox` scraping engine:
+Career Cockpit is designed with a **flexible, loosely-coupled architecture**:
+
+* **Standalone Notion Triage Mode:** If you only need to inspect, search, filter, and triage your Notion Discovery Inbox or advance application stages in your Kanban tracker, you **only need this repository** and your `.env` Notion credentials.
+* **Autonomous Scraping & Profile Tuning Mode:** To run the scraper directly from the GUI (**`▶ Run Job Scout`**) or edit your candidate criteria (**`⚙️ Profile`**), the companion engine [**`job-discovery-inbox`**](https://github.com/AhmedKhalifa3/job-discovery-inbox) is required.
+
+### Recommended Workspace Layout
 
 ```text
 Projects/Personal/
@@ -71,7 +76,7 @@ Projects/Personal/
 │   └── assets/
 │       └── icon.png                   # Application icon for dock, window, and desktop launcher
 │
-└── job_discovery_inbox/               # 🔎 Scraper & Candidate Engine (Peer Repository)
+└── job-discovery-inbox/               # 🔎 Scraper & Candidate Engine (Companion Repository)
     ├── scout.py                       # Autonomous search engine (ATS dorks & API feeds)
     ├── profile.yaml                   # Candidate criteria (roles, skills, locations, negative keywords)
     ├── config.py                      # Search queries, domain filters, and platform configs
@@ -80,8 +85,28 @@ Projects/Personal/
     └── .venv/                         # Scraper virtual environment
 ```
 
-> [!NOTE]
-> If `job_discovery_inbox` is located in another directory, simply specify `SCOUT_PROJECT_PATH=/custom/path/to/job_discovery_inbox` in your `.env` file.
+### How to Clone with the Scraper Engine
+
+> [!TIP]
+> **Option A (Recommended — All 4 Suite Tools):**  
+> Clone the master umbrella repository [**`autonomous-career-suite`**](https://github.com/AhmedKhalifa3/autonomous-career-suite), which automatically clones the GUI, scraper, FastMCP server, and Overleaf resume compiler side-by-side:
+> ```bash
+> git clone --recurse-submodules https://github.com/AhmedKhalifa3/autonomous-career-suite.git
+> cd autonomous-career-suite && ./quickstart.sh
+> ```
+
+> **Option B (Manual Side-by-Side Clone):**  
+> Clone both repositories into the same folder:
+> ```bash
+> git clone https://github.com/AhmedKhalifa3/career-dashboard-gui.git
+> git clone https://github.com/AhmedKhalifa3/job-discovery-inbox.git
+> ```
+
+> **Option C (Custom Folder or Subfolder):**  
+> If you place `job-discovery-inbox` inside `career-dashboard-gui/` or any custom path, set `SCOUT_PROJECT_PATH` in `.env`:
+> ```env
+> SCOUT_PROJECT_PATH=/path/to/job-discovery-inbox
+> ```
 
 ---
 
