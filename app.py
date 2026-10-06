@@ -409,7 +409,7 @@ class ProfileSettingsModal(ctk.CTkToplevel):
 
 class CareerDashboardApp(ctk.CTk):
     def __init__(self):
-        super().__init__()
+        super().__init__(className="career-cockpit")
 
         self.title("Career Cockpit — Autonomous Job Search & Pipeline Dashboard")
         self.geometry("1280x880")

@@ -47,7 +47,7 @@ Path=$SCRIPT_DIR
 Terminal=false
 Categories=Development;Office;
 StartupNotify=true
-StartupWMClass=Career Cockpit
+StartupWMClass=career-cockpit
 Keywords=job;scout;notion;career;applications;
 EOF
 
@@ -56,6 +56,22 @@ chmod +x "$DESKTOP_FILE"
 # Refresh GNOME application database if available
 if command -v update-desktop-database >/dev/null 2>&1; then
     update-desktop-database "$DESKTOP_DIR" >/dev/null 2>&1 || true
+fi
+
+# Automatically add to Ubuntu / GNOME Dock Favorites if gsettings is available
+if command -v gsettings >/dev/null 2>&1; then
+    python3 -c "
+import subprocess, ast
+try:
+    res = subprocess.check_output(['gsettings', 'get', 'org.gnome.shell', 'favorite-apps'], text=True).strip()
+    favs = ast.literal_eval(res)
+    if 'career-cockpit.desktop' not in favs:
+        favs.append('career-cockpit.desktop')
+        subprocess.check_call(['gsettings', 'set', 'org.gnome.shell', 'favorite-apps', str(favs)])
+        print('⭐ Added Career Cockpit directly to Ubuntu Dock Favorites!')
+except Exception:
+    pass
+" 2>/dev/null || true
 fi
 
 echo "============================================================"
