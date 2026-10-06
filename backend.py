@@ -43,13 +43,15 @@ def _find_scout_dir() -> str:
     if override and os.path.exists(override):
         return os.path.abspath(override)
     candidates = [
+        os.path.join(os.path.dirname(__file__), "job-discovery-inbox"),
+        os.path.join(os.path.dirname(__file__), "job_discovery_inbox"),
         os.path.join(os.path.dirname(__file__), "../job_discovery_inbox"),
         os.path.join(os.path.dirname(__file__), "../job-discovery-inbox"),
     ]
     for c in candidates:
         if os.path.exists(c):
             return os.path.abspath(c)
-    return os.path.abspath(candidates[0])
+    return os.path.abspath(candidates[2])
 
 DEFAULT_SCOUT_DIR = _find_scout_dir()
 
