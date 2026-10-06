@@ -96,7 +96,8 @@ class JobDetailsModal(ctk.CTkToplevel):
         ).pack(side="left", padx=(0, 8))
 
         # Score pill (if applicable)
-        score_val = str(item.get("score", "-"))
+        score_raw = str(item.get("score", "-"))
+        score_val = str(min(10, max(0, int(score_raw)))) if score_raw.isdigit() else score_raw
         if score_val and score_val != "-":
             sc_color = "#27ae60" if score_val.isdigit() and int(score_val) >= 7 else "#e67e22" if score_val.isdigit() and int(score_val) >= 4 else "#7f8c8d"
             ctk.CTkLabel(
@@ -1177,7 +1178,8 @@ class CareerDashboardApp(ctk.CTk):
 
         # Match Score badge (for discovery/local)
         if item_type in ("discovery", "local"):
-            score_val = str(item.get("score", "-"))
+            score_raw = str(item.get("score", "-"))
+            score_val = str(min(10, max(0, int(score_raw)))) if score_raw.isdigit() else score_raw
             score_col = "#27ae60" if score_val.isdigit() and int(score_val) >= 7 else "#e67e22" if score_val.isdigit() and int(score_val) >= 4 else "#7f8c8d"
             ctk.CTkLabel(
                 badges,
