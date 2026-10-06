@@ -6,21 +6,27 @@
 
 ## 🌟 Key Features
 
-* 🚀 **Scout Controller**: Trigger fresh ATS scrapers (`24h`, `week`, `any`) across specific categories (`all`, `werkstudent`, `backend`, `ai_agent`, etc.) directly from the GUI.
-* 🛑 **Live Process Controls**: Stop running scrapers anytime with one-click process termination.
-* 📡 **Live Streaming Console**: Real-time terminal log embedded inside the app showing live search dorks, scraping progress, and Notion API status updates.
-* 📊 **Live Metric Cards**: Instant counters for **Total Leads**, **New (Awaiting Review)**, **Approved**, and **Dismissed**.
-* 🔍 **Smart Search & Triage Tabs**:
-  * Filter leads instantly between **`New`**, **`Approved`**, **`Dismissed`**, or **`All`**.
-  * Real-time search box filtering across Company, Role, Location, and Notes.
-* 🎯 **One-Click Row Actions**:
-  * **`✅ Approve`**: Promotes a lead to `Approved` in Notion.
-  * **`❌ Dismiss`**: Flags a lead as `Dismissed` in Notion.
-  * **`🗑️ Trash`**: Archives the page directly to Notion Trash.
-  * **`🔗 Open Job Link`**: Opens the target job application page in your default browser.
+* 🚀 **Scout Controller**: Trigger fresh ATS scrapers (`24h`, `week`, `any`) across specific categories (`all`, `werkstudent`, `backend`, `ai_agent`, etc.) directly from the GUI with Force Rescan controls.
+* ⚡ **High-Performance Architecture**:
+  * **Ultra-Fast Paginated Rendering**: Renders 15 cards per page in <25ms, eliminating Tkinter UI lag and widget overload.
+  * **Debounced Search (220ms)**: Smooth, instant typing with zero UI freezing or stuttering.
+  * **60 FPS Throttled Console**: Log buffer batches stdout lines to maintain buttery responsiveness during heavy scraping.
+* 📊 **Dual Database Mode (Discovery + Active Tracker)**:
+  * **`📥 Discovery Inbox`**: Triage incoming scouted leads from Notion Discovery DB.
+  * **`🆕 Newly Scouted (Local)`**: Review leads in local staging before pushing to Notion.
+  * **`📊 Active Applications`**: Track your live application pipeline (`Applied`, `Screening`, `Interview`, `Offer`, `Rejected`, `Wishlist`) from Notion Job Tracker DB!
+* 🚀 **One-Click Promotion to Application**:
+  * Instantly promote approved leads from Discovery directly into the `Job Applications` Notion tracker.
+* 👁️ **Job Details Inspect Modal**:
+  * Open full job descriptions, match score breakdowns, role requirements, copyable URLs, and quick-action buttons in an elegant floating modal dialog.
+* ⚙️ **In-GUI Search Profile Editor**:
+  * View and update `target_roles`, `skills`, `locations`, and negative filters in `profile.yaml` without editing raw code.
+* 🎯 **Smart Row Actions & Stage Advance**:
+  * Advance application stages directly from dropdown menus on application cards.
+  * One-click Approve, Dismiss, Trash, and Open in Browser.
 * 🧹 **Bulk Maintenance**:
   * **`Clean All Dismissed`**: One-click bulk archival moving all dismissed job postings directly to Notion Trash.
-  * **`Refresh Leads`**: Instant sync with your latest Notion database state.
+  * **`Refresh All Notion Data`**: Instant parallel sync of both Discovery and Tracker databases.
 
 ---
 

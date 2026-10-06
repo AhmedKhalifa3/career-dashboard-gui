@@ -51,6 +51,12 @@ def get_discovery_db_id() -> str:
         raise ValueError("NOTION_DISCOVERED_JOBS_DB_ID is not configured.")
     return db_id
 
+def get_tracker_db_id() -> str:
+    db_id = clean_id(os.getenv("NOTION_JOB_TRACKER_DB_ID", NOTION_JOB_TRACKER_DB_ID))
+    if not db_id:
+        raise ValueError("NOTION_JOB_TRACKER_DB_ID is not configured.")
+    return db_id
+
 def inspect_database_schema(client: Client, db_id: str) -> Dict[str, Any]:
     global _SCHEMA_CACHE
     if db_id in _SCHEMA_CACHE:
@@ -287,6 +293,150 @@ def clean_dismissed_leads(progress_callback: Optional[Callable[[int, int], None]
             progress_callback(i + 1, total)
 
     return cleaned
+
+# --- Active Applications Tracker Operations ---
+
+def fetch_active_applications(status_filter: Optional[str] = None) -> List[Dict[str, Any]]:
+    """Fetches job applications from the active Notion Job Tracker database."""
+    client = get_notion_client()
+    db_id = get_tracker_db_id()
+    schema = inspect_database_schema(client, db_id)
+
+    query_filter = None
+    if status_filter and status_filter.lower() != "all":
+        status_prop = schema.get("status_prop")
+        status_type = schema.get("status_type") or "select"
+        if status_prop:
+            query_filter = {
+                "property": status_prop,
+                status_type: {"equals": status_filter}
+            }
+
+    raw_pages = query_pages(client, db_id, query_filter=query_filter, max_results=150)
+    apps = []
+    for p in raw_pages:
+        props = p.get("properties", {})
+        priority = (props.get("Priority", {}).get("select") or {}).get("name", "Medium")
+        contact = "".join(t.get("plain_text", "") for t in props.get("Contact", {}).get("rich_text", [])).strip()
+        next_followup = (props.get("Next follow-up", {}).get("date") or {}).get("start", "")
+
+        app = {
+            "id": p["id"],
+            "company": _get_page_prop_text(p, schema["title_prop"]) or "Unknown",
+            "role": _get_page_prop_text(p, schema["role_prop"]) or "Software Role",
+            "location": _get_page_prop_text(p, schema["location_prop"]) or "-",
+            "status": _get_page_prop_text(p, schema["status_prop"]) or "Applied",
+            "url": _get_page_prop_text(p, schema["url_prop"]) or "",
+            "notes": _get_page_prop_text(p, schema["notes_prop"]) or "",
+            "date": _get_page_prop_text(p, schema["date_prop"]) or "",
+            "priority": priority,
+            "contact": contact,
+            "next_followup": next_followup,
+            "source_type": "tracker"
+        }
+        apps.append(app)
+    return apps
+
+def update_application_status(page_id: str, new_status: str) -> bool:
+    """Updates the stage/status of an active job application in Notion."""
+    client = get_notion_client()
+    db_id = get_tracker_db_id()
+    schema = inspect_database_schema(client, db_id)
+    status_prop = schema.get("status_prop")
+    status_type = schema.get("status_type") or "select"
+
+    if not status_prop:
+        return False
+
+    client.pages.update(
+        page_id=page_id,
+        properties={
+            status_prop: {status_type: {"name": new_status}}
+        }
+    )
+    return True
+
+def delete_application(page_id: str) -> bool:
+    """Archives an application from the Job Tracker database to trash."""
+    client = get_notion_client()
+    client.pages.update(page_id=page_id, archived=True)
+    return True
+
+def promote_lead_to_application(lead: Dict[str, Any], initial_status: str = "Applied") -> bool:
+    """Promotes an approved discovery lead into the Job Applications tracker database."""
+    client = get_notion_client()
+    tracker_db_id = get_tracker_db_id()
+    schema = inspect_database_schema(client, tracker_db_id)
+
+    from datetime import date
+    today_str = date.today().isoformat()
+
+    title_prop = schema.get("title_prop") or "Company 1"
+    properties: Dict[str, Any] = {
+        title_prop: {
+            "title": [{"text": {"content": lead.get("company", "Company")[:100]}}]
+        }
+    }
+
+    if schema.get("role_prop"):
+        properties[schema["role_prop"]] = {
+            "rich_text": [{"text": {"content": lead.get("role", "Software Role")[:200]}}]
+        }
+
+    if schema.get("url_prop") and lead.get("url"):
+        properties[schema["url_prop"]] = {"url": lead["url"]}
+
+    if schema.get("status_prop"):
+        st_type = schema.get("status_type") or "select"
+        properties[schema["status_prop"]] = {st_type: {"name": initial_status}}
+
+    if schema.get("location_prop") and lead.get("location"):
+        properties[schema["location_prop"]] = {
+            "rich_text": [{"text": {"content": lead.get("location", "")[:100]}}]
+        }
+
+    if schema.get("date_prop"):
+        properties[schema["date_prop"]] = {"date": {"start": today_str}}
+
+    score_val = lead.get("score")
+    priority = "High" if str(score_val).isdigit() and int(score_val) >= 8 else "Medium"
+    properties["Priority"] = {"select": {"name": priority}}
+
+    if schema.get("notes_prop") and lead.get("notes"):
+        properties[schema["notes_prop"]] = {
+            "rich_text": [{"text": {"content": lead.get("notes", "")[:1800]}}]
+        }
+
+    client.pages.create(
+        parent={"database_id": tracker_db_id},
+        properties=properties
+    )
+    return True
+
+# --- Search Profile Operations ---
+
+def load_search_profile() -> Dict[str, Any]:
+    """Reads profile.yaml from job_discovery_inbox."""
+    profile_path = os.path.join(DEFAULT_SCOUT_DIR, "profile.yaml")
+    if not os.path.exists(profile_path):
+        return {}
+    try:
+        import yaml
+        with open(profile_path, "r", encoding="utf-8") as f:
+            return yaml.safe_load(f) or {}
+    except Exception:
+        return {}
+
+def save_search_profile(profile_data: Dict[str, Any]) -> bool:
+    """Saves updated configuration to profile.yaml."""
+    profile_path = os.path.join(DEFAULT_SCOUT_DIR, "profile.yaml")
+    try:
+        import yaml
+        with open(profile_path, "w", encoding="utf-8") as f:
+            yaml.dump(profile_data, f, default_flow_style=False, sort_keys=False, allow_unicode=True)
+        return True
+    except Exception:
+        return False
 
 # --- Local Discovered Jobs & Notion Push Operations ---
 
