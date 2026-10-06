@@ -53,20 +53,61 @@
 
 ---
 
-## ⚡ Quickstart & Standalone App
+## 📁 Directory Structure & Workspace Setup
 
-### 1. Requirements
+Career Cockpit is designed as the interactive control cockpit for your autonomous career search. By default, it operates side-by-side with the `job_discovery_inbox` scraping engine:
 
-Ensure you have Python 3.10+ installed with `tkinter` support.
+```text
+Projects/Personal/
+├── career-dashboard-gui/              # 💼 Desktop GUI Application (This Repository)
+│   ├── app.py                         # Main CustomTkinter UI (navigation, cards, pagination, modals)
+│   ├── backend.py                     # Notion Client API, scout subprocess controller, data sync
+│   ├── run.sh                         # Desktop launcher script (activates .venv and launches app)
+│   ├── install_desktop_app.sh         # Native Linux .desktop launcher installer for Ubuntu / GNOME
+│   ├── build_binary.sh                # Standalone binary compiler using PyInstaller
+│   ├── requirements.txt               # GUI Python dependencies (customtkinter, notion-client, pyyaml)
+│   ├── .env                           # Notion API token and database IDs
+│   ├── .env.example                   # Example environment configuration template
+│   └── assets/
+│       └── icon.png                   # Application icon for dock, window, and desktop launcher
+│
+└── job_discovery_inbox/               # 🔎 Scraper & Candidate Engine (Peer Repository)
+    ├── scout.py                       # Autonomous search engine (ATS dorks & API feeds)
+    ├── profile.yaml                   # Candidate criteria (roles, skills, locations, negative keywords)
+    ├── config.py                      # Search queries, domain filters, and platform configs
+    ├── discovered_jobs.json           # Local staging file for freshly discovered leads
+    ├── seen_jobs.json                 # URL deduplication cache
+    └── .venv/                         # Scraper virtual environment
+```
 
-### 2. Launch the Dashboard
+> [!NOTE]
+> If `job_discovery_inbox` is located in another directory, simply specify `SCOUT_PROJECT_PATH=/custom/path/to/job_discovery_inbox` in your `.env` file.
+
+---
+
+## ⚡ Quickstart & Installation
+
+### 1. Prerequisites
+
+Ensure you have Python 3.10+ installed with `tkinter` support (on Ubuntu: `sudo apt install python3-tk`).
+
+### 2. Setup Virtual Environment
+
+```bash
+cd ~/Projects/Personal/career-dashboard-gui
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 3. Launch the Application
 
 ```bash
 cd ~/Projects/Personal/career-dashboard-gui
 ./run.sh
 ```
 
-### 3. Install as a Native Linux Desktop App (Ubuntu / GNOME)
+### 4. Install as a Native Linux Desktop App (Ubuntu / GNOME)
 
 To integrate Career Cockpit directly into your Ubuntu Application Menu and Dock (with app icon and keyboard search):
 
@@ -78,7 +119,7 @@ cd ~/Projects/Personal/career-dashboard-gui
 * Hit the **Super (Windows)** key, type **Career Cockpit**, and press **Enter** to open.
 * Right-click the app in your Ubuntu Dock and click **"Pin to Dash" / "Add to Favorites"**!
 
-### 4. Build a Standalone Executable Binary (PyInstaller)
+### 5. Build a Standalone Executable Binary (PyInstaller)
 
 To compile the entire application and its dependencies into a standalone binary:
 
@@ -88,8 +129,6 @@ cd ~/Projects/Personal/career-dashboard-gui
 ```
 
 The compiled binary will be placed at `dist/career-cockpit/career-cockpit`.
-python app.py
-```
 
 ---
 
