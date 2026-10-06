@@ -415,6 +415,16 @@ class CareerDashboardApp(ctk.CTk):
         self.geometry("1280x880")
         self.minsize(1080, 720)
 
+        # Set Window & Taskbar Icon
+        icon_path = os.path.join(os.path.dirname(__file__), "assets", "icon.png")
+        if os.path.exists(icon_path):
+            try:
+                from PIL import ImageTk
+                self._app_icon = ImageTk.PhotoImage(file=icon_path)
+                self.wm_iconphoto(True, self._app_icon)
+            except Exception:
+                pass
+
         # Application state
         self.notion_leads: List[Dict[str, Any]] = []
         self.local_leads: List[Dict[str, Any]] = []

@@ -53,7 +53,7 @@
 
 ---
 
-## ⚡ Quickstart
+## ⚡ Quickstart & Standalone App
 
 ### 1. Requirements
 
@@ -61,18 +61,33 @@ Ensure you have Python 3.10+ installed with `tkinter` support.
 
 ### 2. Launch the Dashboard
 
-From the project root:
-
 ```bash
 cd ~/Projects/Personal/career-dashboard-gui
 ./run.sh
 ```
 
-Or manually:
+### 3. Install as a Native Linux Desktop App (Ubuntu / GNOME)
+
+To integrate Career Cockpit directly into your Ubuntu Application Menu and Dock (with app icon and keyboard search):
 
 ```bash
 cd ~/Projects/Personal/career-dashboard-gui
-source .venv/bin/activate
+./install_desktop_app.sh
+```
+
+* Hit the **Super (Windows)** key, type **Career Cockpit**, and press **Enter** to open.
+* Right-click the app in your Ubuntu Dock and click **"Pin to Dash" / "Add to Favorites"**!
+
+### 4. Build a Standalone Executable Binary (PyInstaller)
+
+To compile the entire application and its dependencies into a standalone binary:
+
+```bash
+cd ~/Projects/Personal/career-dashboard-gui
+./build_binary.sh
+```
+
+The compiled binary will be placed at `dist/career-cockpit/career-cockpit`.
 python app.py
 ```
 
