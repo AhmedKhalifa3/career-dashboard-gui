@@ -112,7 +112,7 @@ class JobDetailsModal(ctk.CTkToplevel):
 
         # Status pill
         st_txt = item.get("status", "New")
-        st_color = "#2980b9" if st_txt == "New" else "#27ae60" if st_txt in ("Approved", "Offer") else "#8e44ad" if st_txt in ("Interview", "Screening") else "#c0392b"
+        st_color = "#2980b9" if st_txt == "New" else "#27ae60" if st_txt in ("Approved", "Offer") else "#8e44ad" if st_txt in ("Interview", "Screening") else "#16a085" if st_txt == "Applied" else "#c0392b"
         ctk.CTkLabel(
             meta_frame,
             text=f"Status: {st_txt}",
@@ -233,6 +233,17 @@ class JobDetailsModal(ctk.CTkToplevel):
                     command=self._on_approve_clicked
                 ).pack(side="right", padx=4)
 
+            if item.get("status") != "Applied":
+                ctk.CTkButton(
+                    actions_bar,
+                    text="🎯 Mark Applied",
+                    width=100,
+                    font=ctk.CTkFont(size=12, weight="bold"),
+                    fg_color="#2471a3",
+                    hover_color="#2980b9",
+                    command=self._on_applied_clicked
+                ).pack(side="right", padx=4)
+
             if item.get("status") != "Dismissed":
                 ctk.CTkButton(
                     actions_bar,
@@ -269,6 +280,12 @@ class JobDetailsModal(ctk.CTkToplevel):
 
     def _on_approve_clicked(self):
         cb = self.callbacks.get("on_approve")
+        if cb:
+            cb(self.item)
+        self.destroy()
+
+    def _on_applied_clicked(self):
+        cb = self.callbacks.get("on_applied")
         if cb:
             cb(self.item)
         self.destroy()
@@ -883,7 +900,7 @@ class CareerDashboardApp(ctk.CTk):
             self.tab_filter.grid()
             self.score_menu.grid()
             self.btn_push_to_notion.grid_remove()
-            self.tab_filter.configure(values=["New", "Approved", "Dismissed", "All"])
+            self.tab_filter.configure(values=["New", "Approved", "Applied", "Dismissed", "All"])
             self.tab_filter.set("New")
             self.current_filter = "New"
             self.leads_scroll.configure(label_text="Discovery Inbox Postings")
@@ -1229,7 +1246,7 @@ class CareerDashboardApp(ctk.CTk):
             st_col = "#27ae60" if item.get("pushed") else "#d35400"
         else:
             st_text = st_val
-            st_col = "#2980b9" if st_val == "New" else "#27ae60" if st_val in ("Approved", "Offer") else "#8e44ad" if st_val in ("Interview", "Screening") else "#c0392b"
+            st_col = "#2980b9" if st_val == "New" else "#27ae60" if st_val in ("Approved", "Offer") else "#8e44ad" if st_val in ("Interview", "Screening") else "#16a085" if st_val == "Applied" else "#c0392b"
 
         ctk.CTkLabel(
             badges,
@@ -1318,6 +1335,18 @@ class CareerDashboardApp(ctk.CTk):
                     command=lambda p_id=item["id"], comp=item["company"]: self.on_update_status(p_id, "Dismissed", comp)
                 ).pack(side="right", padx=2)
 
+            if item["status"] != "Applied":
+                ctk.CTkButton(
+                    actions,
+                    text="🎯 Applied",
+                    width=75,
+                    height=26,
+                    font=ctk.CTkFont(size=11),
+                    fg_color="#2471a3",
+                    hover_color="#2980b9",
+                    command=lambda p_id=item["id"], comp=item["company"]: self.on_update_status(p_id, "Applied", comp)
+                ).pack(side="right", padx=2)
+
             if item["status"] != "Approved":
                 ctk.CTkButton(
                     actions,
@@ -1398,6 +1427,7 @@ class CareerDashboardApp(ctk.CTk):
         callbacks = {
             "on_approve": lambda it: self.on_update_status(it["id"], "Approved", it["company"]),
             "on_dismiss": lambda it: self.on_update_status(it["id"], "Dismissed", it["company"]),
+            "on_applied": lambda it: self.on_update_status(it["id"], "Applied", it["company"]),
             "on_promote": lambda it: self.on_promote_lead(it),
             "on_stage_change": lambda it, stage: self.on_update_app_stage(it["id"], stage, it["company"])
         }
