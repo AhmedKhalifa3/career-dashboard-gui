@@ -625,6 +625,7 @@ def run_scout_process(
     category: str = "all",
     max_queries: int = 25,
     rescan: bool = False,
+    country: Optional[str] = None,
     log_callback: Optional[Callable[[str], None]] = None
 ) -> int:
     """Runs scout.py locally (without automatic pushing to Notion)."""
@@ -652,6 +653,9 @@ def run_scout_process(
         "--category", category,
         "--max-queries", str(max_queries)
     ]
+    if country and country.strip().lower() not in ("all", "all (profile default)", "any"):
+        cmd.extend(["--country", country.strip()])
+
     if rescan:
         cmd.append("--rescan")
 

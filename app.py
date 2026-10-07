@@ -522,16 +522,37 @@ class CareerDashboardApp(ctk.CTk):
         )
         self.category_menu.grid(row=7, column=0, padx=20, pady=(0, 8), sticky="ew")
 
+        # Target Country
+        co_lbl = ctk.CTkLabel(self.sidebar, text="Target Country:", font=ctk.CTkFont(size=12))
+        co_lbl.grid(row=8, column=0, padx=20, pady=(2, 0), sticky="w")
+        self.country_var = ctk.StringVar(value="All (Profile Locations)")
+        self.country_menu = ctk.CTkOptionMenu(
+            self.sidebar,
+            values=[
+                "All (Profile Locations)",
+                "Germany",
+                "Switzerland",
+                "Austria",
+                "United Kingdom",
+                "Netherlands",
+                "United States",
+                "Custom Country..."
+            ],
+            variable=self.country_var,
+            command=self._on_country_menu_changed
+        )
+        self.country_menu.grid(row=9, column=0, padx=20, pady=(0, 8), sticky="ew")
+
         # Scan Depth
         d_lbl = ctk.CTkLabel(self.sidebar, text="Scan Speed / Depth:", font=ctk.CTkFont(size=12))
-        d_lbl.grid(row=8, column=0, padx=20, pady=(2, 0), sticky="w")
+        d_lbl.grid(row=10, column=0, padx=20, pady=(2, 0), sticky="w")
         self.depth_var = ctk.StringVar(value="Fast Scan (20 Dorks + APIs)")
         self.depth_menu = ctk.CTkOptionMenu(
             self.sidebar,
             values=["Fast Scan (20 Dorks + APIs)", "Deep Scan (50 Dorks + APIs)", "Full Scan (All Dorks + APIs)"],
             variable=self.depth_var
         )
-        self.depth_menu.grid(row=9, column=0, padx=20, pady=(0, 10), sticky="ew")
+        self.depth_menu.grid(row=11, column=0, padx=20, pady=(0, 10), sticky="ew")
 
         # Force Rescan Checkbox
         self.rescan_var = ctk.BooleanVar(value=False)
@@ -541,7 +562,7 @@ class CareerDashboardApp(ctk.CTk):
             font=ctk.CTkFont(size=12),
             variable=self.rescan_var
         )
-        self.rescan_chk.grid(row=10, column=0, padx=20, pady=(0, 12), sticky="w")
+        self.rescan_chk.grid(row=12, column=0, padx=20, pady=(0, 12), sticky="w")
 
         # Scout Action Buttons
         self.btn_run_scout = ctk.CTkButton(
@@ -552,7 +573,7 @@ class CareerDashboardApp(ctk.CTk):
             hover_color="#144d75",
             command=self.on_run_scout
         )
-        self.btn_run_scout.grid(row=11, column=0, padx=20, pady=(0, 8), sticky="ew")
+        self.btn_run_scout.grid(row=13, column=0, padx=20, pady=(0, 8), sticky="ew")
 
         self.btn_stop_scout = ctk.CTkButton(
             self.sidebar,
@@ -562,11 +583,11 @@ class CareerDashboardApp(ctk.CTk):
             state="disabled",
             command=self.on_stop_scout
         )
-        self.btn_stop_scout.grid(row=12, column=0, padx=20, pady=(0, 15), sticky="ew")
+        self.btn_stop_scout.grid(row=14, column=0, padx=20, pady=(0, 15), sticky="ew")
 
         sep2 = ctk.CTkProgressBar(self.sidebar, height=2)
         sep2.set(1.0)
-        sep2.grid(row=13, column=0, padx=20, pady=(0, 15), sticky="ew")
+        sep2.grid(row=15, column=0, padx=20, pady=(0, 15), sticky="ew")
 
         # Notion & Pipeline Operations
         pipe_hdr = ctk.CTkLabel(
@@ -575,7 +596,7 @@ class CareerDashboardApp(ctk.CTk):
             font=ctk.CTkFont(size=11, weight="bold"),
             text_color="#9b59b6"
         )
-        pipe_hdr.grid(row=14, column=0, padx=20, pady=(0, 8), sticky="w")
+        pipe_hdr.grid(row=16, column=0, padx=20, pady=(0, 8), sticky="w")
 
         self.btn_refresh = ctk.CTkButton(
             self.sidebar,
@@ -584,7 +605,7 @@ class CareerDashboardApp(ctk.CTk):
             hover_color="#34495e",
             command=self.refresh_all_data
         )
-        self.btn_refresh.grid(row=15, column=0, padx=20, pady=(0, 8), sticky="ew")
+        self.btn_refresh.grid(row=17, column=0, padx=20, pady=(0, 8), sticky="ew")
 
         self.btn_clean_dismissed = ctk.CTkButton(
             self.sidebar,
@@ -593,7 +614,7 @@ class CareerDashboardApp(ctk.CTk):
             hover_color="#9b59b6",
             command=self.on_clean_dismissed
         )
-        self.btn_clean_dismissed.grid(row=16, column=0, padx=20, pady=(0, 8), sticky="ew")
+        self.btn_clean_dismissed.grid(row=18, column=0, padx=20, pady=(0, 8), sticky="ew")
 
         self.btn_settings = ctk.CTkButton(
             self.sidebar,
@@ -602,7 +623,7 @@ class CareerDashboardApp(ctk.CTk):
             hover_color="#415b76",
             command=self.open_profile_settings
         )
-        self.btn_settings.grid(row=17, column=0, padx=20, pady=(0, 15), sticky="ew")
+        self.btn_settings.grid(row=19, column=0, padx=20, pady=(0, 15), sticky="ew")
 
         # Bottom theme toggle
         theme_lbl = ctk.CTkLabel(self.sidebar, text="Appearance Mode:", font=ctk.CTkFont(size=11))
@@ -1591,6 +1612,23 @@ class CareerDashboardApp(ctk.CTk):
         self._update_metrics_and_filter_badges()
         self.render_leads_list()
 
+    def _on_country_menu_changed(self, choice: str):
+        if choice == "Custom Country...":
+            dialog = ctk.CTkInputDialog(
+                text="Enter target country (e.g. France, Sweden, Spain, Canada):",
+                title="Target Country"
+            )
+            custom_c = dialog.get_input()
+            if custom_c and custom_c.strip():
+                clean_name = custom_c.strip().title()
+                cur_values = list(self.country_menu.cget("values"))
+                if clean_name not in cur_values:
+                    cur_values.insert(1, clean_name)
+                    self.country_menu.configure(values=cur_values)
+                self.country_var.set(clean_name)
+            else:
+                self.country_var.set("All (Profile Locations)")
+
     # --------------------------------------------------------------------------
     # SCOUT PROCESS EXECUTION
     # --------------------------------------------------------------------------
@@ -1600,6 +1638,8 @@ class CareerDashboardApp(ctk.CTk):
         category = self.category_var.get()
         depth_val = self.depth_var.get()
         rescan = self.rescan_var.get()
+        country_choice = self.country_var.get()
+        country = None if country_choice in ("All (Profile Locations)", "") else country_choice
 
         max_queries = 20
         if "50 Dorks" in depth_val:
@@ -1610,8 +1650,9 @@ class CareerDashboardApp(ctk.CTk):
         self.btn_run_scout.configure(state="disabled", text="⏳ Running Scout...")
         self.btn_stop_scout.configure(state="normal", fg_color="#c0392b")
 
+        country_msg = f", Country: {country}" if country else " (All Profile Locations)"
         rescan_msg = " [🔄 Force Rescan Enabled]" if rescan else ""
-        self.log(f"\n{'='*60}\n🚀 Launching Job Scout (Freshness: {freshness}, Category: {category}{rescan_msg}, Mode: Local Search)\n{'='*60}\n")
+        self.log(f"\n{'='*60}\n🚀 Launching Job Scout (Target: {country_msg}, Freshness: {freshness}, Category: {category}{rescan_msg}, Mode: Local Search)\n{'='*60}\n")
 
         def _worker():
             try:
@@ -1620,6 +1661,7 @@ class CareerDashboardApp(ctk.CTk):
                     category=category,
                     max_queries=max_queries,
                     rescan=rescan,
+                    country=country,
                     log_callback=self.log
                 )
             except Exception as e:
